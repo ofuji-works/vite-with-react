@@ -1,52 +1,72 @@
 import {useEffect, useCallback, useState} from "react"
 import { getCurrentTime, Dayjs } from "../utils"
 
-export const useTimer = (duration: number) => {
-    const [time, setTime] = useState<number>(0);
+type Return = {
+    time: number
+    start: (startTime: Dayjs) => void
+    pause: () => void
+    unpause: (startTime: Dayjs) => void
+  }
+  
+  export const useTimer = (duration: number): Return => {
+    const [time, setTime] = useState<number>(0)
     const [timerId, setTimerId] = useState<number>()
-    const [intervalId, setIntervalId] = useState<number>(duration);
-
+    const [intervalId, setIntervalId] = useState<number>(duration)
+  
     useEffect(() => {
-        setTime(_getTime(duration))
+      setTime(_getTime(duration))
     }, [duration])
-
-    const start = useCallback((startTime: Dayjs) => {
+  
+    const _getTime = (duration: number, startTime?: Dayjs): number => {
+      if (startTime == null) {
+        return duration
+      }
+      return Math.max(duration + startTime.diff(getCurrentTime()), 0)
+    }
+  
+    const _countTime = useCallback((startTime: Dayjs, time: number) => {
+      const id = setInterval(() => {
+        setTime(_getTime(time, startTime))
+      }, 1000)
+      setIntervalId(id)
+  
+      setTimerId(
+        setTimeout(() => {
+          clearInterval(id)
+        }, time)
+      )
+    }, [])
+  
+    const start = useCallback(
+      (startTime: Dayjs) => {
         _countTime(startTime, duration)
-    }, [duration])
-
-    const unpause = useCallback((startTime: Dayjs) => {
+      },
+      [duration, _countTime]
+    )
+  
+    const unpause = useCallback(
+      (startTime: Dayjs) => {
         _countTime(startTime, time)
-    }, [time])
-
+      },
+      [time, _countTime]
+    )
+  
     const pause = useCallback(() => {
-        if (timerId) {
-            clearInterval(intervalId);
-            clearTimeout(timerId)
-        }
-    }, [timerId])
-
-    const _countTime = (startTime: Dayjs, time: number) => {
-        const id = setInterval(() => {
-            setTime(_getTime(time, startTime))
-        }, 1000);
-        setIntervalId(id)
-
-        setTimerId(setTimeout(() => {
-            clearInterval(id)
-        }, time))
-    }
-
-    const _getTime= (duration: number, startTime?: Dayjs) => {
-        if (!startTime) {
-            return duration
-        }
-        return Math.max(duration + (startTime.diff(getCurrentTime())), 0)
-    }
-
-    return {time, start, pause, unpause}
-}
-
-export const format = (number: number) => {
+      if (timerId !== undefined) {
+        clearInterval(intervalId)
+        clearTimeout(timerId)
+      }
+    }, [timerId, intervalId])
+  
+    return { time, start, pause, unpause }
+  }
+  
+  export const format = (number: number): string => {
     const second = Math.round(number / 1000)
-    return `${Math.floor(second / 60)}`.padStart(2, "0") + ":" + `${second % 60}`.padStart(2, "0")
-}
+    return (
+      `${Math.floor(second / 60)}`.padStart(2, '0') +
+      ':' +
+      `${second % 60}`.padStart(2, '0')
+    )
+  }
+  
